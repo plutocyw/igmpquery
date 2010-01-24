@@ -3,26 +3,61 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Jim Hollinger nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *   * Neither the name of Jim Hollinger nor the names of its contributors
+ *     may be used to endorse or promote products derived from this
+ *     software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL JIM HOLLINGER BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORSBE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+/*
+ * Copyright (c) 1999 - 2005 NetGroup, Politecnico di Torino (Italy)
+ * Copyright (c) 2005 - 2006 CACE Technologies, Davis (California)
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the Politecnico di Torino, CACE Technologies 
+ * nor the names of its contributors may be used to endorse or promote 
+ * products derived from this software without specific prior written 
+ * permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
@@ -48,17 +83,241 @@
 #include <pcap.h>
 
 #ifndef WIN32
-#include <sys/socket.h>
-#include <netinet/in.h>
+#  include <sys/socket.h>
+#  include <netinet/in.h>
 #else
-#include <winsock.h>
+#  include <winsock.h>
 #endif
 
-#define VERSION_STR  "V1.0"
+#define VERSION_STR  "V1.1"
+
+#pragma pack(1)
+
+/* 4 byte IPv4 address */
+typedef struct ipv4_address {
+    u_char byte1;
+    u_char byte2;
+    u_char byte3;
+    u_char byte4;
+} ipv4_address;
+
+/* 6 byte MAC */
+typedef struct mac_address {
+    u_char byte1;
+    u_char byte2;
+    u_char byte3;
+    u_char byte4;
+    u_char byte5;
+    u_char byte6;
+} mac_address;
+
+/* MAC header */
+typedef struct mac_header {
+	mac_address dmac;      /* Destination MAC */
+	mac_address smac;      /* Source MAC */
+	u_short ether_type;    /* Ether type */
+} mac_header;
+
+/* IPv4 header */
+typedef struct ip_header {
+    u_char  ver_ihl;        /* Version (4 bits) + Internet header length (4 bits) */
+    u_char  tos;            /* Type of service */
+    u_short tlen;           /* Total length */
+    u_short identification; /* Identification */
+    u_short flags_fo;       /* Flags (3 bits) + Fragment offset (13 bits) */
+    u_char  ttl;            /* Time to live */
+    u_char  proto;          /* Protocol */
+    u_short crc;            /* Header checksum */
+    u_long  saddr;          /* Source address */
+    u_long  daddr;          /* Destination address */
+    u_int   op_pad;         /* Option + Padding */
+} ip_header;
+
+/* ARP header */
+typedef struct arp_header {
+    u_short htype;          /* Hardware type */
+    u_short ptype;          /* Protocol type */
+	u_char  hlen;           /* Hardware address length */
+	u_char  plen;           /* Protocol address length */
+    u_short oper;           /* Operation */
+    mac_address  sha;       /* Sender hardware address */
+	u_long  spa;            /* Sender protocol address */
+    mac_address  tha;       /* Target hardware address */
+	u_long  tpa;            /* Target protocol address */
+} arp_header;
+
+/* ICMP header */
+typedef struct icmp_header {
+    u_char  type;           /* Type */
+    u_char  code;           /* Code */
+    u_short crc;            /* Checksum */
+    u_short id;             /* ID */
+    u_short seq;            /* Sequence */
+} icmp_header;
+
+/* IGMP header */
+typedef struct igmp_header {
+    u_char  type;           /* Type */
+    u_char  mrt;            /* Max response time */
+    u_short crc;            /* Checksum */
+	u_long  gaddr;          /* Group address */
+} igmp_header;
+
+/* TCP header */
+typedef struct tcp_header {
+    u_short sport;          /* Source port */
+    u_short dport;          /* Destination port */
+    u_int   seq_num;        /* Sequence number*/
+    u_int   ack_num;        /* Acknowledgment number*/
+	u_char  offset;         /* Data offset */
+	u_char  flags;          /* Flags */
+    u_short window;         /* Window size */
+    u_short crc;            /* Checksum */
+    u_short urgent;         /* Urgent pointer */
+} tcp_header;
+
+/* UDP header */
+typedef struct udp_header {
+    u_short sport;          /* Source port */
+    u_short dport;          /* Destination port */
+    u_short len;            /* Datagram length */
+    u_short crc;            /* Checksum */
+} udp_header;
+
+/* IPv4 protocols */
+enum ipv4_proto {
+	HOPOPT      =  0,
+	ICMP        =  1,
+	IGMP        =  2,
+	GGP         =  3,
+	IP          =  4,
+	ST          =  5,
+	TCP         =  6,
+	CBT         =  7,
+	EGP         =  8,
+	IGP         =  9,
+	BBN_RCC_MON = 10,
+	NVP_II      = 11,
+	PUP         = 12,
+	ARGUS       = 13,
+	EMCON       = 14,
+	XNET        = 15,
+	CHAOS       = 16,
+	UDP         = 17,
+	MUX         = 18,
+	DCN_MEAS    = 19,
+	HMP         = 20,
+	PRM         = 21,
+	XNS_IDP     = 22
+} ipv4_proto;
+
+
+const char *ipv4ProtoToString(u_char proto) {
+	const char *str = "UNKNOWN-PROTO";
+
+	switch (proto) {
+
+	case HOPOPT:       str = "HOPOPT";       break;
+	case ICMP:         str = "ICMP";         break;
+	case IGMP:         str = "IGMP";         break;
+	case GGP:          str = "GGP";          break;
+	case IP:           str = "IP";           break;
+	case ST:           str = "ST";           break;
+	case TCP:          str = "TCP";          break;
+	case CBT:          str = "CBT";          break;
+	case EGP:          str = "EGP";          break;
+	case IGP:          str = "IGP";          break;
+	case BBN_RCC_MON:  str = "BBN-RCC-MON";  break;
+	case NVP_II:       str = "NVP-II";       break;
+	case PUP:          str = "PUP";          break;
+	case ARGUS:        str = "ARGUS";        break;
+	case EMCON:        str = "EMCON";        break;
+	case XNET:         str = "XNET";         break;
+	case CHAOS:        str = "CHAOS";        break;
+	case UDP:          str = "UDP";          break;
+	case MUX:          str = "MUX";          break;
+	case DCN_MEAS:     str = "DCN-MEAS";     break;
+	case HMP:          str = "HMP";          break;
+	case PRM:          str = "PRM";          break;
+	case XNS_IDP:      str = "XNS-IDP";      break;
+	default:  break;
+
+	}
+
+	return str;
+}
+
+
+const char *icmpCodeToString(u_char proto) {
+	const char *str = "UNKNOWN-ICMP-CODE";
+
+	switch (proto) {
+
+	case  0:           str = "Echo Reply";               break;
+	case  1:           str = "Reserved";                 break;
+	case  2:           str = "Reserved";                 break;
+	case  3:           str = "Destination Unreachable";  break;
+	case  4:           str = "Source Quench";            break;
+	case  5:           str = "Redirect Message";         break;
+	case  6:           str = "Alternate Address";        break;
+	case  7:           str = "Reserved";                 break;
+	case  8:           str = "Echo Request";             break;
+	case  9:           str = "Router Advertisement";     break;
+	case 10:           str = "Router Solicitation";      break;
+	case 11:           str = "Time Exceeded";            break;
+	case 12:           str = "Bad Parameter";            break;
+	case 13:           str = "Timestamp";                break;
+	case 14:           str = "Timestamp Reply";          break;
+	case 15:           str = "Information Request";      break;
+	case 16:           str = "Informatiob Reply";        break;
+	case 17:           str = "Address Mask Request";     break;
+	case 18:           str = "Address Mask Reply";       break;
+	case 19:           str = "HOPOPT";                   break;
+	case 30:           str = "Traceroute";               break;
+	default:  break;
+
+	}
+
+	return str;
+}
+
+
+const char *igmpTypeToString(u_char type) {
+	const char *str = "UNKNOWN-IGMP-TYPE";
+
+	switch (type) {
+
+	case 0x11:         str = "Query";                    break;
+	case 0x12:         str = "v1 Rpt";                   break;
+	case 0x16:         str = "Rpt";                      break;
+	case 0x17:         str = "Leave";                    break;
+	case 0x22:         str = "v3 Rpt";                   break;
+	default:  break;
+
+	}
+
+	return str;
+}
+
+
+const char *arpOperToString(u_short oper) {
+	const char *str = "UNKNOWN-OPER";
+
+	switch (oper) {
+
+	case 1:            str = "Request";                  break;
+	case 2:            str = "Reply";                    break;
+	default:  break;
+
+	}
+
+	return str;
+}
+
 
 /* Convert a numeric IPv4 address to a string */
 #define IPTOSBUFFERS    (12)
-char *iptos(u_long in) {
+char *ip4ToString(u_long in) {
 	static char output[IPTOSBUFFERS][3*4+3+1];
 	static short which;
 	u_char *p;
@@ -71,8 +330,9 @@ char *iptos(u_long in) {
 	return output[which];
 }
 
+
 /* Convert a numeric IPv6 address to a string */
-char* ip6tos(struct sockaddr *sockaddr, char *address, int addrlen) {
+char* ip6ToString(struct sockaddr *sockaddr, char *address, int addrlen) {
 	socklen_t sockaddrlen;
 
 #ifdef WIN32
@@ -92,8 +352,9 @@ char* ip6tos(struct sockaddr *sockaddr, char *address, int addrlen) {
 	return address;
 }
 
+
 /* Print all the available information on the given interface */
-void ifprint(pcap_if_t *d) {
+void if_print(pcap_if_t *d) {
 	pcap_addr_t *a;
 	char ip6str[128];
 
@@ -102,49 +363,139 @@ void ifprint(pcap_if_t *d) {
 
 	/* Description */
 	if (d->description) {
-		printf("\tDescription: %s\n", d->description);
+		printf("    Description: %s\n", d->description);
 	}
 
 	/* Loopback Address*/
 	if (d->flags) {
-		printf("\tLoopback: %s\n", (d->flags & PCAP_IF_LOOPBACK) ? "yes" : "no");
+		printf("    Loopback: %s\n", (d->flags & PCAP_IF_LOOPBACK) ? "yes" : "no");
 	}
 
 	/* IP addresses */
 	for (a = d->addresses; a; a = a->next) {
-		printf("\tAddress Family: #%d\n", a->addr->sa_family);
+		printf("    Address Family: #%d\n", a->addr->sa_family);
 
 		switch (a->addr->sa_family) {
 
 		case AF_INET:
-			printf("\tAddress Family Name: AF_INET\n");
+			printf("    Address Family Name: AF_INET\n");
 			if (a->addr)
-				printf("\tAddress: %s\n",
-					iptos(((struct sockaddr_in *) a->addr)->sin_addr.s_addr));
+				printf("    Address: %s\n",
+					ip4ToString(((struct sockaddr_in *) a->addr)->sin_addr.s_addr));
 			if (a->netmask)
-				printf("\tNetmask: %s\n",
-					iptos(((struct sockaddr_in *) a->netmask)->sin_addr.s_addr));
+				printf("    Netmask: %s\n",
+					ip4ToString(((struct sockaddr_in *) a->netmask)->sin_addr.s_addr));
 			if (a->broadaddr)
-				printf("\tBroadcast Address: %s\n",
-					iptos(((struct sockaddr_in *) a->broadaddr)->sin_addr.s_addr));
+				printf("    Broadcast Address: %s\n",
+					ip4ToString(((struct sockaddr_in *) a->broadaddr)->sin_addr.s_addr));
 			if (a->dstaddr)
-				printf("\tDestination Address: %s\n",
-					iptos(((struct sockaddr_in *) a->dstaddr)->sin_addr.s_addr));
+				printf("    Destination Address: %s\n",
+					ip4ToString(((struct sockaddr_in *) a->dstaddr)->sin_addr.s_addr));
 			break;
 
 		case AF_INET6:
-			printf("\tAddress Family Name: AF_INET6\n");
+			printf("    Address Family Name: AF_INET6\n");
 			if (a->addr)
-				printf("\tAddress: %s\n", ip6tos(a->addr, ip6str, sizeof (ip6str)));
+				printf("    Address: %s\n", ip6ToString(a->addr, ip6str, sizeof (ip6str)));
 			break;
 
 		default:
-			printf("\tAddress Family Name: Unknown\n");
+			printf("    Address Family Name: Unknown\n");
 			break;
 		}
 	}
 	printf("\n");
 }
+
+
+/* Print packet details */
+void packet_print(const u_char *pkt_data) {
+	u_short ether_type;
+	struct mac_header  *mac;
+	struct ip_header   *ip;
+	struct icmp_header *icmp;
+	struct igmp_header *igmp;
+	struct tcp_header  *tcp;
+	struct udp_header  *udp;
+	struct arp_header  *arp;
+	u_int  mac_len;
+	u_int  ip_len;
+
+	mac = (mac_header *) pkt_data;
+	mac_len = sizeof (mac_header);
+	ether_type = ntohs(mac->ether_type);
+	switch (ether_type) {
+
+	case 0x0800:  /* IPv4 */
+
+		/* retireve the position of the ip header */
+		ip = (ip_header *) (pkt_data + mac_len);
+		ip_len = (ip->ver_ihl & 0x0F) * 4;
+
+		switch (ip->proto) {
+
+		case ICMP:
+			icmp = (icmp_header *) (pkt_data + mac_len + ip_len);
+			printf("%15s      ->%15s       ",
+				ip4ToString(ip->saddr),
+				ip4ToString(ip->daddr));
+			printf("%4s %s\n", ipv4ProtoToString(ip->proto), icmpCodeToString(icmp->type));
+			break;
+
+		case IGMP:
+			igmp = (igmp_header *) (pkt_data + mac_len + ip_len);
+			printf("%15s      ->%15s       ",
+				ip4ToString(ip->saddr),
+				ip4ToString(ip->daddr));
+			printf("%4s %s %s\n", ipv4ProtoToString(ip->proto), igmpTypeToString(igmp->type),
+				ip4ToString(igmp->gaddr));
+			break;
+
+		case TCP:
+			tcp = (tcp_header *) (pkt_data + mac_len + ip_len);
+			printf("%15s:%-5u->%15s:%-5u ",
+				ip4ToString(ip->saddr), ntohs(tcp->sport),
+				ip4ToString(ip->daddr), ntohs(tcp->dport));
+			printf("%4s\n", ipv4ProtoToString(ip->proto));
+			break;
+
+		case UDP:
+			udp = (udp_header *) (pkt_data + mac_len + ip_len);
+			printf("%15s:%-5u->%15s:%-5u ",
+				ip4ToString(ip->saddr), ntohs(udp->sport),
+				ip4ToString(ip->daddr), ntohs(udp->dport));
+			printf("%4s Len: %u\n", ipv4ProtoToString(ip->proto), ntohs(udp->len));
+			break;
+
+		default:
+			printf("%15s      ->%15s       ",
+				ip4ToString(ip->saddr),
+				ip4ToString(ip->daddr));
+			printf("%4s\n", ipv4ProtoToString(ip->proto));
+			break;
+		}
+		break;
+
+	case 0x0806:  /* ARP */
+
+		/* retireve the position of the arp header */
+		arp = (arp_header *) (pkt_data + mac_len); 
+		printf("%15s      ->%15s       ",
+			ip4ToString(arp->spa),
+			ip4ToString(arp->tpa));
+		printf("%4s %s\n", "ARP", arpOperToString(ntohs(arp->oper)));
+		break;
+
+	case 0x888E:  /* EAP */
+		printf("%4s\n", "EAP");
+		break;
+
+	default:
+		printf("Ether Type 0x%04X\n", ether_type);
+		break;
+	}
+}
+
 
 /* Compute 16-bit one's complement of the one's complement sum */
 void computeAndStoreIpChecksum(u_short *src, int short_len, u_short *dst) {
@@ -162,24 +513,11 @@ void computeAndStoreIpChecksum(u_short *src, int short_len, u_short *dst) {
 	dest[1] = (u_char) (checksum >> 8);
 }
 
+
 /* Transmit an IGMPv2 general query */
-int igmpQuery(const char *dev, u_long src_addr, u_long dst_addr, u_char ttl) {
-	pcap_t *fp;
-	char errbuf[PCAP_ERRBUF_SIZE];
+int igmpQuery(pcap_t *fp, u_long src_addr, u_long dst_addr, u_char ttl, u_char response_time) {
 	u_char packet[128];
 	int n;
-
-	/* Open the adapter */
-	if ((fp = pcap_open_live(dev,		// name of the device
-		65536,			// portion of the packet to capture. It doesn't matter in this case 
-		1,				// promiscuous mode (nonzero means promiscuous)
-		1000,			// read timeout
-		errbuf			// error buffer
-		)) == NULL)
-	{
-		fprintf(stderr, "Unable to open the adapter. %s is not supported by WinPcap\n\n", dev);
-		return 2;
-	}
 
 	/* MAC header */
 	{
@@ -256,8 +594,8 @@ int igmpQuery(const char *dev, u_long src_addr, u_long dst_addr, u_char ttl) {
 		/* Type: Membership Query */
 		packet[34] = 0x11;
 
-		/* Max Response Time: 10.0 sec */
-		packet[35] = 100;
+		/* Max Response Time */
+		packet[35] = response_time * 10;
 
 		/* Checksum: to be filled in */
 		packet[36] = 0x00;
@@ -297,9 +635,9 @@ int igmpQuery(const char *dev, u_long src_addr, u_long dst_addr, u_char ttl) {
 	n = 60;	/* number of bytes to transmit */
 
 	/* Send down the packet */
-	if (pcap_sendpacket(fp,	// Adapter
-		packet,				// buffer with the packet
-		n					// size
+	if (pcap_sendpacket(fp,	/* Adapter */
+		packet,				/* buffer with the packet */
+		n					/* size */
 		) != 0)
 	{
 		fprintf(stderr, "Error sending the IGMP query: %s\n\n", pcap_geterr(fp));
@@ -307,25 +645,40 @@ int igmpQuery(const char *dev, u_long src_addr, u_long dst_addr, u_char ttl) {
 	}
 	else
 	{
-		printf("IGMPv2 general query %s --> %s\n\n", iptos(src_addr), iptos(dst_addr));
+		printf("IGMPv2 general query %s -> %s\n\n", ip4ToString(src_addr), ip4ToString(dst_addr));
 	}
-
-	pcap_close(fp);	
 
 	return 0;
 }
+
 
 /* Step thru available devices and transmit an IGMPv2 query on all active IPv4 interfaces */
 int main(int argc, char **argv) {
 	pcap_if_t *alldevs;
 	pcap_if_t *d;
-	u_char ttl;
-	char *basename;
-	char dst_addr[64];
-	char errbuf[PCAP_ERRBUF_SIZE + 1];
+	pcap_t    *fp;
+	struct bpf_program fcode;
+	u_char     ttl;
+	u_char     response_s;
+	u_char     listen_s;
+	u_char     timeout_s;
+	u_int      netmask;
+	char      *basename;
+	char       dst_addr[64];
+	char       errbuf[PCAP_ERRBUF_SIZE + 1];
+	int        res;
+	struct tm  ltime;
+	char       timestr[16];
+	struct pcap_pkthdr *header;
+	const u_char *pkt_data;
+	time_t     local_tv_sec;
+	char       packet_filter[] = "igmp";
 
 	strcpy_s(dst_addr, sizeof (dst_addr), "224.0.0.1");
 	ttl = 1;
+	response_s = 1;
+	listen_s   = 10;
+	timeout_s  = 1;
 
 	printf("\nIGMPv2 query generator %s\n", VERSION_STR);
 	printf("    Project web site: http://code.google.com/p/igmpquery/\n");
@@ -355,11 +708,71 @@ int main(int argc, char **argv) {
 	for (d = alldevs; d; d = d->next) {
 		if (d) {
 			if (d->addresses && (d->addresses->addr->sa_family == AF_INET)) {
-				ifprint(d);
-				igmpQuery(d->name,
-					((struct sockaddr_in *) d->addresses->addr)->sin_addr.s_addr,
-					inet_addr(dst_addr),
-					ttl);
+				if_print(d);
+
+				/* Open the adapter */
+				if ((fp = pcap_open_live(d->name,	/* name of the device */
+					65536,							/* portion of the packet to capture. It doesn't matter in this case */
+					1,								/* promiscuous mode (nonzero means promiscuous) */
+					timeout_s * 1000,				/* read timeout */
+					errbuf							/* error buffer */
+					)) == NULL)
+				{
+					fprintf(stderr, "Unable to open the adapter. %s is not supported by WinPcap.\n\n", d->name);
+				} else {
+
+					/* transmit IGMP query */
+					igmpQuery(fp,
+						((struct sockaddr_in *) (d->addresses->addr))->sin_addr.s_addr,
+						inet_addr(dst_addr),
+						ttl,
+						response_s);
+
+					/* listen for responses */
+					if (pcap_datalink(fp) != DLT_EN10MB) {
+						fprintf(stderr,"\nNot an Ethernet network.\n");
+					} else {
+
+						/* Retrieve the mask of the first address of the interface */
+						netmask = ((struct sockaddr_in *) (d->addresses->netmask))->sin_addr.s_addr;
+
+						/* compile the filter */
+						if (pcap_compile(fp, &fcode, packet_filter, 1, netmask) < 0) {
+							fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
+						} else {
+					    
+							/* Set the filter */
+							if (pcap_setfilter(fp, &fcode) < 0) {
+								fprintf(stderr, "\nError setting the filter.\n");
+							} else {
+								printf("listening on for responses ...\n");
+
+								/* Retrieve the packets */
+								while ((res = pcap_next_ex(fp, &header, &pkt_data)) >= 0) {
+							        
+									if (res == 0) {  /* Timeout elapsed */
+										listen_s -= 1;
+										if (listen_s <= 0) {
+											break;
+										} else {
+											continue;
+										}
+									}
+							        
+									/* convert the timestamp to readable format */
+									local_tv_sec = header->ts.tv_sec;
+									localtime_s(&ltime, &local_tv_sec);
+									strftime(timestr, sizeof (timestr), "%H:%M:%S", &ltime);
+							        
+									printf("%s.%.03d ", timestr, header->ts.tv_usec / 1000);
+									packet_print(pkt_data);
+								}
+							}
+						}
+					}
+					pcap_close(fp);
+					fp = NULL;
+				}
 			}
 		}
 	}
