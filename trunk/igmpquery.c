@@ -89,7 +89,7 @@
 #  include <winsock.h>
 #endif
 
-#define VERSION_STR  "V1.1"
+#define VERSION_STR  "V1.2"
 
 #pragma pack(1)
 
@@ -211,7 +211,16 @@ enum ipv4_proto {
 	XNS_IDP     = 22
 } ipv4_proto;
 
+/* IPv4 protocols */
+enum igmp_type {
+	IGMP_QUERY      = 0x11,
+	IGMPv1_REPORT   = 0x12,
+	IGMPv2_REPORT   = 0x16,
+	IGMP_LEAVE      = 0x17,
+	IGMPv3_REPORT   = 0x22,
+} igmp_type;
 
+/* Return string representation of IPv4 protocol */
 const char *ipv4ProtoToString(u_char proto) {
 	const char *str = "UNKNOWN-PROTO";
 
@@ -248,10 +257,11 @@ const char *ipv4ProtoToString(u_char proto) {
 }
 
 
-const char *icmpCodeToString(u_char proto) {
+/* Return string representation of ICMP code */
+const char *icmpCodeToString(u_char code) {
 	const char *str = "UNKNOWN-ICMP-CODE";
 
-	switch (proto) {
+	switch (code) {
 
 	case  0:           str = "Echo Reply";               break;
 	case  1:           str = "Reserved";                 break;
@@ -282,16 +292,17 @@ const char *icmpCodeToString(u_char proto) {
 }
 
 
+/* Return string representation of IGMP type */
 const char *igmpTypeToString(u_char type) {
 	const char *str = "UNKNOWN-IGMP-TYPE";
 
 	switch (type) {
 
-	case 0x11:         str = "Query";                    break;
-	case 0x12:         str = "v1 Rpt";                   break;
-	case 0x16:         str = "Rpt";                      break;
-	case 0x17:         str = "Leave";                    break;
-	case 0x22:         str = "v3 Rpt";                   break;
+	case IGMP_QUERY:    str = "Query";                   break;
+	case IGMPv1_REPORT: str = "v1 Rpt";                  break;
+	case IGMPv2_REPORT: str = "Rpt";                     break;
+	case IGMP_LEAVE:    str = "Leave";                   break;
+	case IGMPv3_REPORT: str = "v3 Rpt";                  break;
 	default:  break;
 
 	}
@@ -300,6 +311,7 @@ const char *igmpTypeToString(u_char type) {
 }
 
 
+/* Return string representation of ARP operation */
 const char *arpOperToString(u_short oper) {
 	const char *str = "UNKNOWN-OPER";
 
@@ -332,7 +344,7 @@ char *ip4ToString(u_long in) {
 
 
 /* Convert a numeric IPv6 address to a string */
-char* ip6ToString(struct sockaddr *sockaddr, char *address, int addrlen) {
+char *ip6ToString(struct sockaddr *sockaddr, char *address, int addrlen) {
 	socklen_t sockaddrlen;
 
 #ifdef WIN32
@@ -436,7 +448,7 @@ void packet_print(const u_char *pkt_data) {
 
 		case ICMP:
 			icmp = (icmp_header *) (pkt_data + mac_len + ip_len);
-			printf("%15s      ->%15s       ",
+			printf("%14s      ->%14s       ",
 				ip4ToString(ip->saddr),
 				ip4ToString(ip->daddr));
 			printf("%4s %s\n", ipv4ProtoToString(ip->proto), icmpCodeToString(icmp->type));
@@ -444,16 +456,21 @@ void packet_print(const u_char *pkt_data) {
 
 		case IGMP:
 			igmp = (igmp_header *) (pkt_data + mac_len + ip_len);
-			printf("%15s      ->%15s       ",
+			printf("%14s      ->%14s       ",
 				ip4ToString(ip->saddr),
 				ip4ToString(ip->daddr));
-			printf("%4s %s %s\n", ipv4ProtoToString(ip->proto), igmpTypeToString(igmp->type),
-				ip4ToString(igmp->gaddr));
+			if ((igmp->type == IGMP_QUERY) && (igmp->gaddr == 0)) {
+				printf("%4s %s %s\n", ipv4ProtoToString(ip->proto), igmpTypeToString(igmp->type),
+					"General");
+			} else {
+				printf("%4s %s %s\n", ipv4ProtoToString(ip->proto), igmpTypeToString(igmp->type),
+					ip4ToString(igmp->gaddr));
+			}
 			break;
 
 		case TCP:
 			tcp = (tcp_header *) (pkt_data + mac_len + ip_len);
-			printf("%15s:%-5u->%15s:%-5u ",
+			printf("%14s:%-5u->%14s:%-5u ",
 				ip4ToString(ip->saddr), ntohs(tcp->sport),
 				ip4ToString(ip->daddr), ntohs(tcp->dport));
 			printf("%4s\n", ipv4ProtoToString(ip->proto));
@@ -461,14 +478,14 @@ void packet_print(const u_char *pkt_data) {
 
 		case UDP:
 			udp = (udp_header *) (pkt_data + mac_len + ip_len);
-			printf("%15s:%-5u->%15s:%-5u ",
+			printf("%14s:%-5u->%14s:%-5u ",
 				ip4ToString(ip->saddr), ntohs(udp->sport),
 				ip4ToString(ip->daddr), ntohs(udp->dport));
 			printf("%4s Len: %u\n", ipv4ProtoToString(ip->proto), ntohs(udp->len));
 			break;
 
 		default:
-			printf("%15s      ->%15s       ",
+			printf("%14s      ->%14s       ",
 				ip4ToString(ip->saddr),
 				ip4ToString(ip->daddr));
 			printf("%4s\n", ipv4ProtoToString(ip->proto));
@@ -480,7 +497,7 @@ void packet_print(const u_char *pkt_data) {
 
 		/* retireve the position of the arp header */
 		arp = (arp_header *) (pkt_data + mac_len); 
-		printf("%15s      ->%15s       ",
+		printf("%14s      ->%14s       ",
 			ip4ToString(arp->spa),
 			ip4ToString(arp->tpa));
 		printf("%4s %s\n", "ARP", arpOperToString(ntohs(arp->oper)));
@@ -592,7 +609,7 @@ int igmpQuery(pcap_t *fp, u_long src_addr, u_long dst_addr, u_char ttl, u_char r
 	/* IGMPv2 packet */
 	{
 		/* Type: Membership Query */
-		packet[34] = 0x11;
+		packet[34] = IGMP_QUERY;
 
 		/* Max Response Time */
 		packet[35] = response_time * 10;
@@ -641,7 +658,7 @@ int igmpQuery(pcap_t *fp, u_long src_addr, u_long dst_addr, u_char ttl, u_char r
 		) != 0)
 	{
 		fprintf(stderr, "Error sending the IGMP query: %s\n\n", pcap_geterr(fp));
-		return 3;
+		return -1;
 	}
 	else
 	{
@@ -649,6 +666,41 @@ int igmpQuery(pcap_t *fp, u_long src_addr, u_long dst_addr, u_char ttl, u_char r
 	}
 
 	return 0;
+}
+
+
+/* Listen for traffic on the interface that passes the filter */
+void pcapListen(pcap_t *fp, u_char listen_s) {
+	struct pcap_pkthdr *header;
+	const u_char       *pkt_data;
+	char                time_str[16];
+	struct tm           ltime;
+	time_t              local_s, start_s, now_s;
+	double              elapse_s;
+	int                 res;
+
+	/* Retrieve the packets */
+	time(&start_s);
+	while ((res = pcap_next_ex(fp, &header, &pkt_data)) >= 0) {
+
+		if (res == 0) {  /* Timeout elapsed */
+			time(&now_s);
+			elapse_s = difftime(now_s, start_s);
+			if (elapse_s >= listen_s) {
+				break;
+			} else {
+				continue;
+			}
+		}
+        
+		/* convert the timestamp to readable format */
+		local_s = header->ts.tv_sec;
+		localtime_s(&ltime, &local_s);
+		strftime(time_str, sizeof (time_str), "%H:%M:%S", &ltime);
+        
+		printf("%s.%.03d ", time_str, header->ts.tv_usec / 1000);
+		packet_print(pkt_data);
+	}
 }
 
 
@@ -666,12 +718,6 @@ int main(int argc, char **argv) {
 	char      *basename;
 	char       dst_addr[64];
 	char       errbuf[PCAP_ERRBUF_SIZE + 1];
-	int        res;
-	struct tm  ltime;
-	char       timestr[16];
-	struct pcap_pkthdr *header;
-	const u_char *pkt_data;
-	time_t     local_tv_sec;
 	char       packet_filter[] = "igmp";
 
 	strcpy_s(dst_addr, sizeof (dst_addr), "224.0.0.1");
@@ -722,50 +768,34 @@ int main(int argc, char **argv) {
 				} else {
 
 					/* transmit IGMP query */
-					igmpQuery(fp,
+					if (igmpQuery(fp,
 						((struct sockaddr_in *) (d->addresses->addr))->sin_addr.s_addr,
 						inet_addr(dst_addr),
 						ttl,
-						response_s);
+						response_s) >= 0) {
 
-					/* listen for responses */
-					if (pcap_datalink(fp) != DLT_EN10MB) {
-						fprintf(stderr,"\nNot an Ethernet network.\n");
-					} else {
-
-						/* Retrieve the mask of the first address of the interface */
-						netmask = ((struct sockaddr_in *) (d->addresses->netmask))->sin_addr.s_addr;
-
-						/* compile the filter */
-						if (pcap_compile(fp, &fcode, packet_filter, 1, netmask) < 0) {
-							fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
+						/* listen for responses */
+						if (pcap_datalink(fp) != DLT_EN10MB) {
+							fprintf(stderr,"\nNot an Ethernet network.\n");
 						} else {
-					    
-							/* Set the filter */
-							if (pcap_setfilter(fp, &fcode) < 0) {
-								fprintf(stderr, "\nError setting the filter.\n");
-							} else {
-								printf("listening on for responses ...\n");
 
-								/* Retrieve the packets */
-								while ((res = pcap_next_ex(fp, &header, &pkt_data)) >= 0) {
-							        
-									if (res == 0) {  /* Timeout elapsed */
-										listen_s -= 1;
-										if (listen_s <= 0) {
-											break;
-										} else {
-											continue;
-										}
-									}
-							        
-									/* convert the timestamp to readable format */
-									local_tv_sec = header->ts.tv_sec;
-									localtime_s(&ltime, &local_tv_sec);
-									strftime(timestr, sizeof (timestr), "%H:%M:%S", &ltime);
-							        
-									printf("%s.%.03d ", timestr, header->ts.tv_usec / 1000);
-									packet_print(pkt_data);
+							/* Retrieve the mask of the first address of the interface */
+							netmask = ((struct sockaddr_in *) (d->addresses->netmask))->sin_addr.s_addr;
+
+							/* compile the filter */
+							if (pcap_compile(fp, &fcode, packet_filter, 1, netmask) < 0) {
+								fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
+							} else {
+						    
+								/* Set the filter */
+								if (pcap_setfilter(fp, &fcode) < 0) {
+									fprintf(stderr, "\nError setting the filter.\n");
+								} else {
+
+									/* listen for responses */
+									printf("listening for responses ...\n");
+									pcapListen(fp, listen_s);
+									printf("\n\n");
 								}
 							}
 						}
