@@ -89,7 +89,7 @@
 #  include <winsock.h>
 #endif
 
-#define VERSION_STR  "V1.3"
+#define VERSION_STR  "V1.4"
 
 #pragma pack(1)
 
@@ -365,10 +365,61 @@ char *ip6ToString(struct sockaddr *sockaddr, char *address, int addrlen) {
 }
 
 
-/* Print all the available information on the given interface */
-void if_print(pcap_if_t *d) {
-    pcap_addr_t *a;
+/* Print an ip address */
+void ip_addr_print(pcap_addr_t *a) {
     char ip6str[128];
+
+    switch (a->addr->sa_family) {
+
+    case AF_INET:
+        if (a->addr)
+            printf("    Address: %s\n",
+                ip4ToString(((struct sockaddr_in *) a->addr)->sin_addr.s_addr));
+        break;
+
+    case AF_INET6:
+        if (a->addr)
+            printf("    Address: %s\n", ip6ToString(a->addr, ip6str, sizeof (ip6str)));
+        break;
+
+    default:
+        break;
+    }
+}
+
+
+/* Print all the available information for an ip address */
+void ip_print(pcap_addr_t *a) {
+    switch (a->addr->sa_family) {
+
+    case AF_INET:
+        printf("    Address Family Name: AF_INET\n");
+        ip_addr_print(a);
+        if (a->netmask)
+            printf("    Netmask: %s\n",
+                ip4ToString(((struct sockaddr_in *) a->netmask)->sin_addr.s_addr));
+        if (a->broadaddr)
+            printf("    Broadcast Address: %s\n",
+                ip4ToString(((struct sockaddr_in *) a->broadaddr)->sin_addr.s_addr));
+        if (a->dstaddr)
+            printf("    Destination Address: %s\n",
+                ip4ToString(((struct sockaddr_in *) a->dstaddr)->sin_addr.s_addr));
+        break;
+
+    case AF_INET6:
+        printf("    Address Family Name: AF_INET6\n");
+        ip_addr_print(a);
+        break;
+
+    default:
+        printf("    Address Family Name: Unknown\n");
+        break;
+    }
+}
+
+
+/* Print information on the given interface */
+void if_print(pcap_if_t *d) {
 
     /* Name */
     printf("%s\n", d->name);
@@ -383,39 +434,6 @@ void if_print(pcap_if_t *d) {
         printf("    Loopback: %s\n", (d->flags & PCAP_IF_LOOPBACK) ? "yes" : "no");
     }
 
-    /* IP addresses */
-    for (a = d->addresses; a; a = a->next) {
-        printf("    Address Family: #%d\n", a->addr->sa_family);
-
-        switch (a->addr->sa_family) {
-
-        case AF_INET:
-            printf("    Address Family Name: AF_INET\n");
-            if (a->addr)
-                printf("    Address: %s\n",
-                    ip4ToString(((struct sockaddr_in *) a->addr)->sin_addr.s_addr));
-            if (a->netmask)
-                printf("    Netmask: %s\n",
-                    ip4ToString(((struct sockaddr_in *) a->netmask)->sin_addr.s_addr));
-            if (a->broadaddr)
-                printf("    Broadcast Address: %s\n",
-                    ip4ToString(((struct sockaddr_in *) a->broadaddr)->sin_addr.s_addr));
-            if (a->dstaddr)
-                printf("    Destination Address: %s\n",
-                    ip4ToString(((struct sockaddr_in *) a->dstaddr)->sin_addr.s_addr));
-            break;
-
-        case AF_INET6:
-            printf("    Address Family Name: AF_INET6\n");
-            if (a->addr)
-                printf("    Address: %s\n", ip6ToString(a->addr, ip6str, sizeof (ip6str)));
-            break;
-
-        default:
-            printf("    Address Family Name: Unknown\n");
-            break;
-        }
-    }
     printf("\n");
 }
 
@@ -779,8 +797,12 @@ int main(int argc, char **argv) {
                 break;
 
             case 'i':
-                dr = atoi(argv[++count]);
-                ad = atoi(argv[++count]);
+                if ((count + 1) < argc) {
+                    dr = atoi(argv[++count]);
+                    if ((count + 1) < argc) {
+                        ad = atoi(argv[++count]);
+                    }
+                }
                 specific = 1;
                 printf("\n Only run on Interface %d and Address %d\n\n", dr, ad);
                 break;
@@ -830,6 +852,7 @@ int main(int argc, char **argv) {
 
                         if (d->description) {
                             printf("Interface %d and Address %d  Description: %s\n", driver, address,d->description);
+                            ip_addr_print(a);
                         }
                     }
                 }
@@ -842,17 +865,20 @@ int main(int argc, char **argv) {
     driver = 1;
     for (d = alldevs; d; d = d->next, driver++) {
         if (d != NULL) {
+            if (quiet != 1) {
+                if_print(d);
+            }
 
             /* Scan the addresses on the interface, there could be more than one especially if IPv6 is on */
             address = 1;
             for (a = d->addresses; a; a = a->next, address++) {
                 if ((a != NULL) && (a->addr->sa_family == AF_INET)) {
                     if (quiet != 1) {
-                        if_print(d);
+                        ip_print(a);
                     }
                     if (specific && ((driver != dr) || (address != ad))) {
                         if (quiet != 1) {
-                            printf("Interface and Address do not a match\n");
+                            printf("Interface and Address do not a match\n\n");
                         }
                         continue;
                     }
